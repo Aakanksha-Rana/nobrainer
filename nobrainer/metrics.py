@@ -63,10 +63,14 @@ def generalized_dice(y_true, y_pred, axis=(1, 2, 3)):
         raise ValueError("y_true and y_pred must be at least rank 2.")
 
     epsilon = tf.keras.backend.epsilon()
-    w = tf.math.reciprocal(tf.square(tf.reduce_sum(y_true, axis=axis)) + epsilon)
-    num = 2 * tf.reduce_sum(w * tf.reduce_sum(y_true * y_pred, axis=axis), axis=-1)
-    den = tf.reduce_sum(w * tf.reduce_sum(y_true + y_pred, axis=axis), axis=-1)
-    return (num + epsilon) / (den + epsilon)
+    
+    w = tf.math.reciprocal(tf.square(tf.reduce_sum(y_true, axis=axis)))
+    w = tf.where(tf.math.is_finite(w), w, epsilon)
+    num = 2 * tf.reduce_sum(w * tf.reduce_sum(y_true * y_pred, axis= axis), axis=-1)
+    den = tf.reduce_sum(w * tf.reduce_sum(y_true + y_pred, axis= axis), axis=-1)
+    gdice = num/den
+    gdice = tf.where(tf.math.is_finite(gdice), gdice, tf.zeros_like(gdice))
+    return gdice
 
 
 def hamming(y_true, y_pred, axis=(1, 2, 3)):
@@ -132,3 +136,10 @@ def tversky(y_true, y_pred, axis=(1, 2, 3), alpha=0.3, beta=0.7):
     )
     # Sum over classes.
     return tf.reduce_sum((num + eps) / (den + eps), axis=-1)
+
+def dice_coef_multilabel(y_true, y_pred):
+    n_classes= tf.shape(y_pred)[-1]
+    dice_coeff=0
+    for index in range(n_classes):
+        dice_coeff -= dice(y_true[:,:,:,:,index], y_pred[:,:,:,:,index])
+    return dice_coeff
